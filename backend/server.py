@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,12 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime
-
+import httpx
+import random
+import string
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,32 +27,404 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Models
+class GameStart(BaseModel):
+    pass
 
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+class GameState(BaseModel):
+    game_id: str
+    current_letter: str
+    user_score: int
+    app_score: int
+    used_words: List[str]
+    turn: str  # "user" or "app"
+    status: str  # "active", "user_won", "app_won"
+    time_limit: int = 30
+    last_word: Optional[str] = None
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class ValidateWord(BaseModel):
+    game_id: str
+    word: str
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class PassTurn(BaseModel):
+    game_id: str
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
+class ValidateResponse(BaseModel):
+    valid: bool
+    message: str
+    user_points: int
+    app_word: Optional[str]
+    app_points: int
+    next_letter: str
+    game_state: GameState
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+# Helper functions
+async def validate_word_with_api(word: str) -> bool:
+    """Validate word using Free Dictionary API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word.lower()}")
+            return response.status_code == 200
+    except:
+        return False
+
+async def get_word_frequency(word: str) -> int:
+    """Get word frequency score using DataMuse API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"https://api.datamuse.com/words?sp={word.lower()}&md=f&max=1")
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0 and 'tags' in data[0]:
+                    for tag in data[0]['tags']:
+                        if tag.startswith('f:'):
+                            freq = float(tag.split(':')[1])
+                            # Convert frequency to points (lower frequency = more points)
+                            # Frequency ranges from 0 to ~100, invert it
+                            points = max(1, int(10 - (freq / 10)))
+                            return points
+    except:
+        pass
+    # Default scoring based on word length if API fails
+    return max(1, len(word) // 2)
+
+async def generate_app_word(letter: str, used_words: List[str]) -> Optional[str]:
+    """Generate a word starting with the given letter using DataMuse API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get words starting with the letter, sorted by frequency
+            response = await client.get(f"https://api.datamuse.com/words?sp={letter.lower()}*&md=f&max=100")
+            if response.status_code == 200:
+                words = response.json()
+                # Filter out used words and words less than 3 letters
+                available_words = [
+                    w['word'] for w in words 
+                    if w['word'].lower() not in [uw.lower() for uw in used_words] 
+                    and len(w['word']) >= 3
+                    and w['word'].isalpha()
+                ]
+                if available_words:
+                    # Pick a random word from top 20 to add variety
+                    return random.choice(available_words[:min(20, len(available_words))])
+    except:
+        pass
+    return None
+
+def calculate_points(word: str, frequency_score: int) -> int:
+    """Calculate points based on word length and frequency"""
+    base_points = len(word)
+    frequency_bonus = frequency_score * 2
+    return base_points + frequency_bonus
+
+# Routes
+@api_router.post("/game/start", response_model=GameState)
+async def start_game(game_start: GameStart):
+    """Start a new game"""
+    game_id = str(uuid.uuid4())
+    
+    # Pick a random starting letter (avoid difficult letters)
+    common_letters = list("ABCDEFGHILMNOPRSTW")
+    starting_letter = random.choice(common_letters)
+    
+    game_state = {
+        "game_id": game_id,
+        "current_letter": starting_letter,
+        "user_score": 0,
+        "app_score": 0,
+        "used_words": [],
+        "turn": "user",
+        "status": "active",
+        "time_limit": 30,
+        "last_word": None,
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.games.insert_one(game_state)
+    return GameState(**game_state)
+
+@api_router.post("/game/validate", response_model=ValidateResponse)
+async def validate_word(validate: ValidateWord):
+    """Validate user's word and generate app's response"""
+    # Get game state
+    game = await db.games.find_one({"game_id": validate.game_id})
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    word = validate.word.strip().lower()
+    current_letter = game["current_letter"].lower()
+    used_words = game["used_words"]
+    
+    # Validation checks
+    if not word:
+        return ValidateResponse(
+            valid=False,
+            message="Please enter a word",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    if not word.isalpha():
+        return ValidateResponse(
+            valid=False,
+            message="Word must contain only letters",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    if len(word) < 2:
+        return ValidateResponse(
+            valid=False,
+            message="Word must be at least 2 letters long",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    if not word.startswith(current_letter):
+        return ValidateResponse(
+            valid=False,
+            message=f"Word must start with '{current_letter.upper()}'",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    if word in [w.lower() for w in used_words]:
+        return ValidateResponse(
+            valid=False,
+            message="Word already used!",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    # Validate with dictionary API
+    is_valid = await validate_word_with_api(word)
+    if not is_valid:
+        return ValidateResponse(
+            valid=False,
+            message="Not a valid word",
+            user_points=0,
+            app_word=None,
+            app_points=0,
+            next_letter=game["current_letter"],
+            game_state=GameState(**game)
+        )
+    
+    # Calculate user points
+    freq_score = await get_word_frequency(word)
+    user_points = calculate_points(word, freq_score)
+    new_user_score = game["user_score"] + user_points
+    
+    # Add word to used words
+    used_words.append(word)
+    
+    # Get last letter for app's turn
+    last_letter = word[-1].upper()
+    
+    # Check if user won
+    if new_user_score >= 100:
+        await db.games.update_one(
+            {"game_id": validate.game_id},
+            {"$set": {
+                "user_score": new_user_score,
+                "used_words": used_words,
+                "status": "user_won",
+                "last_word": word
+            }}
+        )
+        updated_game = await db.games.find_one({"game_id": validate.game_id})
+        return ValidateResponse(
+            valid=True,
+            message="Congratulations! You won! 🎉",
+            user_points=user_points,
+            app_word=None,
+            app_points=0,
+            next_letter=last_letter,
+            game_state=GameState(**updated_game)
+        )
+    
+    # Generate app's word
+    app_word = await generate_app_word(last_letter, used_words)
+    
+    if not app_word:
+        # App can't find a word, user wins
+        await db.games.update_one(
+            {"game_id": validate.game_id},
+            {"$set": {
+                "user_score": new_user_score,
+                "used_words": used_words,
+                "status": "user_won",
+                "current_letter": last_letter,
+                "last_word": word
+            }}
+        )
+        updated_game = await db.games.find_one({"game_id": validate.game_id})
+        return ValidateResponse(
+            valid=True,
+            message="I couldn't find a word. You win! 🎉",
+            user_points=user_points,
+            app_word=None,
+            app_points=0,
+            next_letter=last_letter,
+            game_state=GameState(**updated_game)
+        )
+    
+    # Calculate app points
+    app_freq_score = await get_word_frequency(app_word)
+    app_points = calculate_points(app_word, app_freq_score)
+    new_app_score = game["app_score"] + app_points
+    
+    # Add app word to used words
+    used_words.append(app_word)
+    
+    # Get next letter
+    next_letter = app_word[-1].upper()
+    
+    # Check if app won
+    if new_app_score >= 100:
+        await db.games.update_one(
+            {"game_id": validate.game_id},
+            {"$set": {
+                "user_score": new_user_score,
+                "app_score": new_app_score,
+                "used_words": used_words,
+                "status": "app_won",
+                "current_letter": next_letter,
+                "last_word": app_word
+            }}
+        )
+        updated_game = await db.games.find_one({"game_id": validate.game_id})
+        return ValidateResponse(
+            valid=True,
+            message=f"I played '{app_word}' and won! 😊",
+            user_points=user_points,
+            app_word=app_word,
+            app_points=app_points,
+            next_letter=next_letter,
+            game_state=GameState(**updated_game)
+        )
+    
+    # Continue game
+    await db.games.update_one(
+        {"game_id": validate.game_id},
+        {"$set": {
+            "user_score": new_user_score,
+            "app_score": new_app_score,
+            "used_words": used_words,
+            "current_letter": next_letter,
+            "last_word": app_word
+        }}
+    )
+    
+    updated_game = await db.games.find_one({"game_id": validate.game_id})
+    return ValidateResponse(
+        valid=True,
+        message=f"Good word! I played '{app_word}'",
+        user_points=user_points,
+        app_word=app_word,
+        app_points=app_points,
+        next_letter=next_letter,
+        game_state=GameState(**updated_game)
+    )
+
+@api_router.post("/game/pass")
+async def pass_turn(pass_turn: PassTurn):
+    """Handle user passing their turn"""
+    game = await db.games.find_one({"game_id": pass_turn.game_id})
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    current_letter = game["current_letter"]
+    used_words = game["used_words"]
+    
+    # Generate app's word with current letter
+    app_word = await generate_app_word(current_letter, used_words)
+    
+    if not app_word:
+        # App also can't find a word, it's a tie but user wins
+        await db.games.update_one(
+            {"game_id": pass_turn.game_id},
+            {"$set": {"status": "user_won"}}
+        )
+        updated_game = await db.games.find_one({"game_id": pass_turn.game_id})
+        return {
+            "message": "Neither of us could find a word. You win! 🎉",
+            "app_word": None,
+            "game_state": GameState(**updated_game)
+        }
+    
+    # Calculate app points
+    app_freq_score = await get_word_frequency(app_word)
+    app_points = calculate_points(app_word, app_freq_score)
+    new_app_score = game["app_score"] + app_points
+    
+    # Add app word to used words
+    used_words.append(app_word)
+    
+    # Get next letter
+    next_letter = app_word[-1].upper()
+    
+    # Check if app won
+    if new_app_score >= 100:
+        await db.games.update_one(
+            {"game_id": pass_turn.game_id},
+            {"$set": {
+                "app_score": new_app_score,
+                "used_words": used_words,
+                "status": "app_won",
+                "current_letter": next_letter,
+                "last_word": app_word
+            }}
+        )
+        updated_game = await db.games.find_one({"game_id": pass_turn.game_id})
+        return {
+            "message": f"I played '{app_word}' and won! 😊",
+            "app_word": app_word,
+            "app_points": app_points,
+            "next_letter": next_letter,
+            "game_state": GameState(**updated_game)
+        }
+    
+    # Continue game
+    await db.games.update_one(
+        {"game_id": pass_turn.game_id},
+        {"$set": {
+            "app_score": new_app_score,
+            "used_words": used_words,
+            "current_letter": next_letter,
+            "last_word": app_word
+        }}
+    )
+    
+    updated_game = await db.games.find_one({"game_id": pass_turn.game_id})
+    return {
+        "message": f"You passed. I played '{app_word}'",
+        "app_word": app_word,
+        "app_points": app_points,
+        "next_letter": next_letter,
+        "game_state": GameState(**updated_game)
+    }
+
+@api_router.get("/game/{game_id}", response_model=GameState)
+async def get_game_state(game_id: str):
+    """Get current game state"""
+    game = await db.games.find_one({"game_id": game_id})
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return GameState(**game)
 
 # Include the router in the main app
 app.include_router(api_router)
