@@ -193,7 +193,7 @@ export default function Index() {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -201,10 +201,7 @@ export default function Index() {
   if (gameState.status !== 'active') {
     const userWon = gameState.status === 'user_won';
     return (
-      <LinearGradient
-        colors={userWon ? ['#11998e', '#38ef7d'] : ['#ee0979', '#ff6a00']}
-        style={styles.container}
-      >
+      <View style={[styles.container, userWon ? styles.greenGradient : styles.redGradient]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.gameOverContainer}>
             <Text style={styles.gameOverTitle}>
