@@ -337,13 +337,22 @@ export default function Index() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  purpleGradient: {
+    backgroundColor: '#764ba2',
+  },
+  greenGradient: {
+    backgroundColor: '#11998e',
+  },
+  redGradient: {
+    backgroundColor: '#ee0979',
   },
   safeArea: {
     flex: 1,
