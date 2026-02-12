@@ -166,7 +166,7 @@ export default function Index() {
   // Render welcome screen
   if (!gameState) {
     return (
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.container}>
+      <View style={[styles.container, styles.purpleGradient]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.welcomeContainer}>
             <Text style={styles.title}>🎮 Word Chain</Text>
