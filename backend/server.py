@@ -176,7 +176,7 @@ async def validate_word(validate: ValidateWord):
     if not word:
         return ValidateResponse(
             valid=False,
-            message="Please enter a word",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
@@ -187,7 +187,7 @@ async def validate_word(validate: ValidateWord):
     if not word.isalpha():
         return ValidateResponse(
             valid=False,
-            message="Word must contain only letters",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
@@ -198,7 +198,7 @@ async def validate_word(validate: ValidateWord):
     if len(word) < 2:
         return ValidateResponse(
             valid=False,
-            message="Word must be at least 2 letters long",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
@@ -209,7 +209,7 @@ async def validate_word(validate: ValidateWord):
     if not word.startswith(current_letter):
         return ValidateResponse(
             valid=False,
-            message=f"Word must start with '{current_letter.upper()}'",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
@@ -220,7 +220,7 @@ async def validate_word(validate: ValidateWord):
     if word in [w.lower() for w in used_words]:
         return ValidateResponse(
             valid=False,
-            message="Word already used!",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
@@ -233,7 +233,7 @@ async def validate_word(validate: ValidateWord):
     if not is_valid:
         return ValidateResponse(
             valid=False,
-            message="Not a valid word",
+            message="The word is not Correct",
             user_points=0,
             app_word=None,
             app_points=0,
