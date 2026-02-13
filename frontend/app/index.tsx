@@ -566,11 +566,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  messageContainerWrapper: {
+    minHeight: 64,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
   messageContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 15,
     padding: 16,
-    marginBottom: 16,
   },
   messageText: {
     fontSize: 16,
