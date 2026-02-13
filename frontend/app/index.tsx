@@ -168,6 +168,16 @@ export default function Index() {
     setLoading(false);
   };
 
+  // Exit game
+  const handleExit = () => {
+    setGameState(null);
+    setUserWord('');
+    setMessage('');
+    setTimeLeft(30);
+    setIsTimerActive(false);
+    setShowTimerSelect(false);
+  };
+
   // Render welcome screen
   if (!gameState) {
     return (
