@@ -406,6 +406,14 @@ export default function Index() {
               </TouchableOpacity>
             </View>
 
+            {/* Exit Button */}
+            <TouchableOpacity
+              style={styles.exitButton}
+              onPress={handleExit}
+            >
+              <Text style={styles.exitButtonText}>Exit Game</Text>
+            </TouchableOpacity>
+
             {/* Used Words List */}
             <View style={styles.usedWordsContainer}>
               <Text style={styles.usedWordsTitle}>Used Words ({gameState.used_words.length})</Text>
