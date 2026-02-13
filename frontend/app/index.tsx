@@ -252,7 +252,7 @@ export default function Index() {
                     disabled={loading}
                   >
                     <Text style={styles.confirmButtonText} numberOfLines={1}>
-                      {loading ? 'Starting...' : 'Confirm'}
+                      {loading ? 'Starting...' : 'Start'}
                     </Text>
                   </TouchableOpacity>
                 </View>
