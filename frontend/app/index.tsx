@@ -349,13 +349,15 @@ export default function Index() {
             )}
 
             {/* Message Display */}
-            {message && (
-              <Animated.View
-                style={[styles.messageContainer, { opacity: messageOpacity }]}
-              >
-                <Text style={styles.messageText}>{message}</Text>
-              </Animated.View>
-            )}
+            <View style={styles.messageContainerWrapper}>
+              {message ? (
+                <Animated.View
+                  style={[styles.messageContainer, { opacity: messageOpacity }]}
+                >
+                  <Text style={styles.messageText}>{message}</Text>
+                </Animated.View>
+              ) : null}
+            </View>
 
             {/* Input Field */}
             <View style={styles.inputContainer}>
