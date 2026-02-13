@@ -38,10 +38,10 @@ export default function Index() {
   const [selectedTimer, setSelectedTimer] = useState(30);
   const [showTimerSelect, setShowTimerSelect] = useState(false);
   
-  // Animation values
-  const letterScale = new Animated.Value(1);
-  const messageOpacity = new Animated.Value(0);
-  const scoreAnimation = new Animated.Value(0);
+  // Animation values - use useRef to persist across renders
+  const letterScale = React.useRef(new Animated.Value(1)).current;
+  const messageOpacity = React.useRef(new Animated.Value(0)).current;
+  const scoreAnimation = React.useRef(new Animated.Value(0)).current;
 
   // Start new game
   const startNewGame = async (timerDuration: number) => {
