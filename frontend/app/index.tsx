@@ -84,13 +84,15 @@ export default function Index() {
   // Show message with animation
   const showMessage = (msg: string) => {
     setMessage(msg);
+    // Reset opacity first
+    messageOpacity.setValue(0);
     Animated.sequence([
       Animated.timing(messageOpacity, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.delay(2000),
+      Animated.delay(3000),
       Animated.timing(messageOpacity, {
         toValue: 0,
         duration: 300,
