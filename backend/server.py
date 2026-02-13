@@ -29,7 +29,7 @@ api_router = APIRouter(prefix="/api")
 
 # Models
 class GameStart(BaseModel):
-    pass
+    time_limit: int = 30  # Allow user to set timer
 
 class GameState(BaseModel):
     game_id: str
@@ -111,10 +111,28 @@ async def generate_app_word(letter: str, used_words: List[str]) -> Optional[str]
     return None
 
 def calculate_points(word: str, frequency_score: int) -> int:
-    """Calculate points based on word length and frequency"""
-    base_points = len(word)
-    frequency_bonus = frequency_score * 2
-    return base_points + frequency_bonus
+    """Calculate points based on word length, frequency, and difficulty - max 10 points"""
+    # Length factor (1-4 points): longer words get more points
+    length = len(word)
+    if length <= 3:
+        length_points = 1
+    elif length <= 5:
+        length_points = 2
+    elif length <= 7:
+        length_points = 3
+    else:
+        length_points = 4
+    
+    # Frequency/rarity factor (1-4 points): rarer words get more points
+    rarity_points = min(4, frequency_score)
+    
+    # Difficulty factor (1-2 points): words with uncommon letters get bonus
+    uncommon_letters = set('qxzjkvwyfhbp')
+    difficulty_points = min(2, len([c for c in word.lower() if c in uncommon_letters]))
+    
+    # Total points capped at 10
+    total = min(10, length_points + rarity_points + difficulty_points)
+    return max(1, total)  # Minimum 1 point
 
 # Routes
 @api_router.post("/game/start", response_model=GameState)
@@ -134,7 +152,7 @@ async def start_game(game_start: GameStart):
         "used_words": [],
         "turn": "user",
         "status": "active",
-        "time_limit": 30,
+        "time_limit": game_start.time_limit,  # Use user-selected timer
         "last_word": None,
         "created_at": datetime.utcnow()
     }
