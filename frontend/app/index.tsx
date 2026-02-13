@@ -243,7 +243,7 @@ export default function Index() {
                     style={styles.backButton}
                     onPress={() => setShowTimerSelect(false)}
                   >
-                    <Text style={styles.backButtonText}>Back</Text>
+                    <Text style={styles.backButtonText} numberOfLines={1}>Back</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
