@@ -763,9 +763,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   confirmButton: {
-    flex: 1,
+    flex: 1.2,
     backgroundColor: '#fff',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 25,
   },
