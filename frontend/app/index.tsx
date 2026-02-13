@@ -251,7 +251,7 @@ export default function Index() {
                     onPress={() => startNewGame(selectedTimer)}
                     disabled={loading}
                   >
-                    <Text style={styles.confirmButtonText}>
+                    <Text style={styles.confirmButtonText} numberOfLines={1}>
                       {loading ? 'Starting...' : 'Confirm'}
                     </Text>
                   </TouchableOpacity>
