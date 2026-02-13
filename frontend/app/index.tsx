@@ -772,6 +772,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButtonText: {
     fontSize: 18,
@@ -780,11 +782,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   confirmButton: {
-    flex: 1.2,
+    flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmButtonText: {
     fontSize: 18,
