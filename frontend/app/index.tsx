@@ -35,6 +35,8 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [isTimerActive, setIsTimerActive] = useState(false);
+  const [selectedTimer, setSelectedTimer] = useState(30);
+  const [showTimerSelect, setShowTimerSelect] = useState(false);
   
   // Animation values
   const letterScale = new Animated.Value(1);
@@ -42,19 +44,20 @@ export default function Index() {
   const scoreAnimation = new Animated.Value(0);
 
   // Start new game
-  const startNewGame = async () => {
+  const startNewGame = async (timerDuration: number) => {
     setLoading(true);
     setMessage('');
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ time_limit: timerDuration }),
       });
       const data = await response.json();
       setGameState(data);
-      setTimeLeft(30);
-      setIsTimerActive(true);
+      setTimeLeft(timerDuration);
+      setIsTimerActive(timerDuration > 0);
+      setShowTimerSelect(false);
       animateLetter();
     } catch (error) {
       setMessage('Failed to start game. Please try again.');
@@ -103,7 +106,7 @@ export default function Index() {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timeLeft === 0 && gameState?.status === 'active') {
+    } else if (timeLeft === 0 && gameState?.status === 'active' && isTimerActive) {
       handlePass();
     }
     return () => clearInterval(interval);
@@ -128,7 +131,7 @@ export default function Index() {
       if (data.valid) {
         setGameState(data.game_state);
         setUserWord('');
-        setTimeLeft(30);
+        setTimeLeft(gameState.time_limit);
         showMessage(data.message);
         animateLetter();
       } else {
@@ -154,7 +157,7 @@ export default function Index() {
       const data = await response.json();
       setGameState(data.game_state);
       setUserWord('');
-      setTimeLeft(30);
+      setTimeLeft(gameState.time_limit);
       showMessage(data.message);
       animateLetter();
     } catch (error) {
@@ -169,28 +172,90 @@ export default function Index() {
       <View style={[styles.container, styles.purpleGradient]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.welcomeContainer}>
-            <Text style={styles.title}>🎮 Word Chain</Text>
+            <Text style={styles.title}>Word Chain</Text>
             <Text style={styles.subtitle}>Challenge yourself in this exciting word game!</Text>
             
-            <View style={styles.rulesContainer}>
-              <Text style={styles.rulesTitle}>How to Play:</Text>
-              <Text style={styles.ruleText}>• Type a word starting with the given letter</Text>
-              <Text style={styles.ruleText}>• App responds with a word starting with your last letter</Text>
-              <Text style={styles.ruleText}>• Longer & rarer words earn more points</Text>
-              <Text style={styles.ruleText}>• First to reach 100 points wins!</Text>
-              <Text style={styles.ruleText}>• You have 30 seconds per turn</Text>
-              <Text style={styles.ruleText}>• You can pass if stuck</Text>
-            </View>
+            {!showTimerSelect ? (
+              <>
+                <View style={styles.rulesContainer}>
+                  <Text style={styles.rulesTitle}>How to Play:</Text>
+                  <Text style={styles.ruleText}>• Type a word starting with the given letter</Text>
+                  <Text style={styles.ruleText}>• App responds with a word starting with your last letter</Text>
+                  <Text style={styles.ruleText}>• Longer & rarer words earn more points (max 10/word)</Text>
+                  <Text style={styles.ruleText}>• First to reach 100 points wins!</Text>
+                  <Text style={styles.ruleText}>• You can pass if stuck</Text>
+                </View>
 
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={startNewGame}
-              disabled={loading}
-            >
-              <Text style={styles.startButtonText}>
-                {loading ? 'Starting...' : 'Start Game'}
-              </Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.startButton}
+                  onPress={() => setShowTimerSelect(true)}
+                  disabled={loading}
+                >
+                  <Text style={styles.startButtonText}>Start Game</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.timerSelectContainer}>
+                  <Text style={styles.timerSelectTitle}>Choose Timer Duration</Text>
+                  
+                  <TouchableOpacity
+                    style={[styles.timerOption, selectedTimer === 0 && styles.timerOptionSelected]}
+                    onPress={() => setSelectedTimer(0)}
+                  >
+                    <Text style={[styles.timerOptionText, selectedTimer === 0 && styles.timerOptionTextSelected]}>
+                      No Timer
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.timerOption, selectedTimer === 15 && styles.timerOptionSelected]}
+                    onPress={() => setSelectedTimer(15)}
+                  >
+                    <Text style={[styles.timerOptionText, selectedTimer === 15 && styles.timerOptionTextSelected]}>
+                      15 seconds
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.timerOption, selectedTimer === 30 && styles.timerOptionSelected]}
+                    onPress={() => setSelectedTimer(30)}
+                  >
+                    <Text style={[styles.timerOptionText, selectedTimer === 30 && styles.timerOptionTextSelected]}>
+                      30 seconds
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.timerOption, selectedTimer === 60 && styles.timerOptionSelected]}
+                    onPress={() => setSelectedTimer(60)}
+                  >
+                    <Text style={[styles.timerOptionText, selectedTimer === 60 && styles.timerOptionTextSelected]}>
+                      60 seconds
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.timerButtonsContainer}>
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => setShowTimerSelect(false)}
+                  >
+                    <Text style={styles.backButtonText}>Back</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => startNewGame(selectedTimer)}
+                    disabled={loading}
+                  >
+                    <Text style={styles.confirmButtonText}>
+                      {loading ? 'Starting...' : 'Confirm'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </SafeAreaView>
       </View>
