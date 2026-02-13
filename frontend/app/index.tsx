@@ -774,6 +774,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#764ba2',
     textAlign: 'center',
-    numberOfLines: 1,
   },
 });
