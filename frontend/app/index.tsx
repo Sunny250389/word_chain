@@ -314,9 +314,15 @@ export default function Index() {
                 <Text style={styles.scoreLabel}>You</Text>
                 <Text style={styles.scoreValue}>{gameState.user_score}</Text>
               </View>
-              <View style={styles.timerBox}>
-                <Text style={styles.timerText}>{timeLeft}s</Text>
-              </View>
+              {gameState.time_limit > 0 ? (
+                <View style={styles.timerBox}>
+                  <Text style={styles.timerText}>{timeLeft}s</Text>
+                </View>
+              ) : (
+                <View style={styles.timerBox}>
+                  <Text style={styles.timerText}>∞</Text>
+                </View>
+              )}
               <View style={styles.scoreBox}>
                 <Text style={styles.scoreLabel}>App</Text>
                 <Text style={styles.scoreValue}>{gameState.app_score}</Text>
