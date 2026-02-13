@@ -254,7 +254,7 @@ export default function Index() {
                     style={styles.backButton}
                     onPress={() => setShowTimerSelect(false)}
                   >
-                    <Text style={styles.backButtonText} numberOfLines={1}>Back</Text>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -262,9 +262,7 @@ export default function Index() {
                     onPress={() => startNewGame(selectedTimer)}
                     disabled={loading}
                   >
-                    <Text style={styles.confirmButtonText} numberOfLines={1}>
-                      {loading ? 'Starting...' : 'Start'}
-                    </Text>
+                    <Ionicons name="arrow-forward" size={24} color="#764ba2" />
                   </TouchableOpacity>
                 </View>
               </>
