@@ -579,7 +579,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
   },
