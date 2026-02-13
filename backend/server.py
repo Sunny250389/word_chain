@@ -220,7 +220,7 @@ async def validate_word(validate: ValidateWord):
     if word in [w.lower() for w in used_words]:
         return ValidateResponse(
             valid=False,
-            message="The word is not Correct",
+            message="Word is repeated",
             user_points=0,
             app_word=None,
             app_points=0,
