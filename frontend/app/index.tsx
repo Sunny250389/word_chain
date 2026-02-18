@@ -237,6 +237,27 @@ export default function Index() {
             <Text style={styles.title}>Word Chain</Text>
             <Text style={styles.subtitle}>Challenge yourself in this exciting word game!</Text>
             
+            {/* Statistics Display */}
+            {stats.total_games > 0 && (
+              <View style={styles.statsContainer}>
+                <Text style={styles.statsTitle}>Your Stats</Text>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{stats.wins}</Text>
+                    <Text style={styles.statLabel}>Wins</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{stats.total_games}</Text>
+                    <Text style={styles.statLabel}>Games</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{stats.win_rate}%</Text>
+                    <Text style={styles.statLabel}>Win Rate</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+            
             {!showTimerSelect ? (
               <>
                 <View style={styles.rulesContainer}>
