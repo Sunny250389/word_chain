@@ -39,11 +39,59 @@ export default function Index() {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [selectedTimer, setSelectedTimer] = useState(30);
   const [showTimerSelect, setShowTimerSelect] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  const [stats, setStats] = useState({ total_games: 0, wins: 0, losses: 0, win_rate: 0 });
   
   // Animation values - use useRef to persist across renders
   const letterScale = React.useRef(new Animated.Value(1)).current;
   const messageOpacity = React.useRef(new Animated.Value(0)).current;
   const scoreAnimation = React.useRef(new Animated.Value(0)).current;
+
+  // Initialize user ID and load stats
+  useEffect(() => {
+    initializeUser();
+  }, []);
+
+  const initializeUser = async () => {
+    try {
+      let storedUserId = await AsyncStorage.getItem('userId');
+      if (!storedUserId) {
+        // Generate new user ID
+        storedUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await AsyncStorage.setItem('userId', storedUserId);
+      }
+      setUserId(storedUserId);
+      await loadStats(storedUserId);
+    } catch (error) {
+      console.error('Failed to initialize user:', error);
+    }
+  };
+
+  const loadStats = async (uid: string) => {
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/${uid}`);
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
+
+  const updateStats = async (won: boolean) => {
+    if (!userId) return;
+    
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, won }),
+      });
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to update stats:', error);
+    }
+  };
 
   // Start new game
   const startNewGame = async (timerDuration: number) => {
