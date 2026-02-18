@@ -325,12 +325,18 @@ export default function Index() {
   // Render game over screen
   if (gameState.status !== 'active') {
     const userWon = gameState.status === 'user_won';
+    
+    // Update stats when game ends (only once)
+    React.useEffect(() => {
+      updateStats(userWon);
+    }, []);
+    
     return (
       <View style={[styles.container, userWon ? styles.greenGradient : styles.redGradient]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.gameOverContainer}>
             <Text style={styles.gameOverTitle}>
-              {userWon ? '🎉 You Win!' : '😊 I Win!'}
+              {userWon ? 'You Win!' : 'I Win!'}
             </Text>
             <View style={styles.finalScoreContainer}>
               <View style={styles.finalScoreBox}>
@@ -349,7 +355,10 @@ export default function Index() {
 
             <TouchableOpacity
               style={styles.playAgainButton}
-              onPress={startNewGame}
+              onPress={() => {
+                setShowTimerSelect(true);
+                setGameState(null);
+              }}
             >
               <Text style={styles.playAgainButtonText}>Play Again</Text>
             </TouchableOpacity>
