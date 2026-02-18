@@ -49,6 +49,17 @@ class ValidateWord(BaseModel):
 class PassTurn(BaseModel):
     game_id: str
 
+class UpdateStats(BaseModel):
+    user_id: str
+    won: bool
+
+class UserStats(BaseModel):
+    user_id: str
+    total_games: int
+    wins: int
+    losses: int
+    win_rate: float
+
 class ValidateResponse(BaseModel):
     valid: bool
     message: str
