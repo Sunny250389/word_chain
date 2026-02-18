@@ -457,6 +457,67 @@ async def get_game_state(game_id: str):
         raise HTTPException(status_code=404, detail="Game not found")
     return GameState(**game)
 
+@api_router.post("/stats/update")
+async def update_stats(stats: UpdateStats):
+    """Update user statistics after game ends"""
+    user_stats = await db.user_stats.find_one({"user_id": stats.user_id})
+    
+    if not user_stats:
+        # Create new stats entry
+        user_stats = {
+            "user_id": stats.user_id,
+            "total_games": 1,
+            "wins": 1 if stats.won else 0,
+            "losses": 0 if stats.won else 1
+        }
+        await db.user_stats.insert_one(user_stats)
+    else:
+        # Update existing stats
+        await db.user_stats.update_one(
+            {"user_id": stats.user_id},
+            {"$inc": {
+                "total_games": 1,
+                "wins": 1 if stats.won else 0,
+                "losses": 0 if stats.won else 1
+            }}
+        )
+    
+    # Fetch updated stats
+    updated_stats = await db.user_stats.find_one({"user_id": stats.user_id})
+    win_rate = (updated_stats["wins"] / updated_stats["total_games"]) * 100 if updated_stats["total_games"] > 0 else 0
+    
+    return {
+        "user_id": updated_stats["user_id"],
+        "total_games": updated_stats["total_games"],
+        "wins": updated_stats["wins"],
+        "losses": updated_stats["losses"],
+        "win_rate": round(win_rate, 1)
+    }
+
+@api_router.get("/stats/{user_id}", response_model=UserStats)
+async def get_user_stats(user_id: str):
+    """Get user statistics"""
+    user_stats = await db.user_stats.find_one({"user_id": user_id})
+    
+    if not user_stats:
+        return UserStats(
+            user_id=user_id,
+            total_games=0,
+            wins=0,
+            losses=0,
+            win_rate=0.0
+        )
+    
+    win_rate = (user_stats["wins"] / user_stats["total_games"]) * 100 if user_stats["total_games"] > 0 else 0
+    
+    return UserStats(
+        user_id=user_stats["user_id"],
+        total_games=user_stats["total_games"],
+        wins=user_stats["wins"],
+        losses=user_stats["losses"],
+        win_rate=round(win_rate, 1)
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
