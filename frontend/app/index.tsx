@@ -41,6 +41,7 @@ export default function Index() {
   const [showTimerSelect, setShowTimerSelect] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [stats, setStats] = useState({ total_games: 0, wins: 0, losses: 0, win_rate: 0 });
+  const [gameEndProcessed, setGameEndProcessed] = useState(false);
   
   // Animation values - use useRef to persist across renders
   const letterScale = React.useRef(new Animated.Value(1)).current;
@@ -97,6 +98,7 @@ export default function Index() {
   const startNewGame = async (timerDuration: number) => {
     setLoading(true);
     setMessage('');
+    setGameEndProcessed(false);
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/start`, {
         method: 'POST',
@@ -164,6 +166,15 @@ export default function Index() {
     return () => clearInterval(interval);
   }, [isTimerActive, timeLeft, gameState]);
 
+  // Update stats when game ends (top-level hook — never inside conditional render)
+  useEffect(() => {
+    if (gameState && gameState.status !== 'active' && !gameEndProcessed) {
+      const userWon = gameState.status === 'user_won';
+      updateStats(userWon);
+      setGameEndProcessed(true);
+    }
+  }, [gameState, gameEndProcessed]);
+
   // Submit word
   const handleSubmit = async () => {
     if (!userWord.trim() || !gameState) return;
@@ -219,13 +230,26 @@ export default function Index() {
   };
 
   // Exit game
-  const handleExit = () => {
+  const handleExit = async () => {
+    // Count exit as a loss if a game was active
+    if (gameState && gameState.status === 'active' && userId) {
+      try {
+        await updateStats(false);
+      } catch (e) {
+        // ignore stats error on exit
+      }
+    }
     setGameState(null);
     setUserWord('');
     setMessage('');
     setTimeLeft(30);
     setIsTimerActive(false);
     setShowTimerSelect(false);
+    setGameEndProcessed(false);
+    // Reload stats to show updated values on welcome screen
+    if (userId) {
+      loadStats(userId);
+    }
   };
 
   // Render welcome screen
@@ -347,11 +371,6 @@ export default function Index() {
   if (gameState.status !== 'active') {
     const userWon = gameState.status === 'user_won';
     
-    // Update stats when game ends (only once)
-    React.useEffect(() => {
-      updateStats(userWon);
-    }, []);
-    
     return (
       <View style={[styles.container, userWon ? styles.greenGradient : styles.redGradient]}>
         <SafeAreaView style={styles.safeArea}>
@@ -379,6 +398,10 @@ export default function Index() {
               onPress={() => {
                 setShowTimerSelect(true);
                 setGameState(null);
+                setGameEndProcessed(false);
+                if (userId) {
+                  loadStats(userId);
+                }
               }}
             >
               <Text style={styles.playAgainButtonText}>Play Again</Text>

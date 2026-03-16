@@ -7,7 +7,7 @@ import asyncio
 import httpx
 import json
 
-BACKEND_URL = "https://quick-word-chain.preview.emergentagent.com/api"
+BACKEND_URL = "https://word-match-challenge-2.preview.emergentagent.com/api"
 
 async def test_additional_scenarios():
     """Test additional edge cases and scenarios"""

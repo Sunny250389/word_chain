@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any
 
 # Backend URL from environment
-BACKEND_URL = "https://quick-word-chain.preview.emergentagent.com/api"
+BACKEND_URL = "https://word-match-challenge-2.preview.emergentagent.com/api"
 
 class WordChainGameTester:
     def __init__(self):
@@ -523,6 +523,193 @@ class WordChainGameTester:
                 {"error_type": type(e).__name__}
             )
     
+    async def test_stats_endpoints(self):
+        """Test stats GET and UPDATE endpoints"""
+        print("\n🎯 Testing Stats Endpoints...")
+        
+        try:
+            import time
+            test_user_id = f"test_user_{int(time.time())}"
+            
+            # Test 1: Get stats for new user (should return zeros)
+            response = await self.client.get(f"{BACKEND_URL}/stats/{test_user_id}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                expected_fields = ["user_id", "total_games", "wins", "losses", "win_rate"]
+                missing_fields = [field for field in expected_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test(
+                        "Stats - GET New User",
+                        False,
+                        f"Missing fields in response: {missing_fields}",
+                        {"response": data}
+                    )
+                elif (data["total_games"] == 0 and data["wins"] == 0 and 
+                      data["losses"] == 0 and data["win_rate"] == 0.0 and 
+                      data["user_id"] == test_user_id):
+                    self.log_test(
+                        "Stats - GET New User",
+                        True,
+                        "Correctly returns zero stats for new user",
+                        {"response": data}
+                    )
+                else:
+                    self.log_test(
+                        "Stats - GET New User",
+                        False,
+                        "New user should have zero stats",
+                        {"response": data}
+                    )
+            else:
+                self.log_test(
+                    "Stats - GET New User",
+                    False,
+                    f"HTTP {response.status_code}: {response.text}",
+                    {"status_code": response.status_code}
+                )
+            
+            # Test 2: Update stats with win
+            response = await self.client.post(f"{BACKEND_URL}/stats/update", json={
+                "user_id": test_user_id,
+                "won": True
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                if (data.get("total_games") == 1 and data.get("wins") == 1 and 
+                    data.get("losses") == 0 and data.get("win_rate") == 100.0):
+                    self.log_test(
+                        "Stats - UPDATE Win",
+                        True,
+                        "Successfully updated stats with win",
+                        {"response": data}
+                    )
+                    
+                    # Store user for consistency test
+                    self.stats_test_user = test_user_id
+                    self.expected_stats = data
+                else:
+                    self.log_test(
+                        "Stats - UPDATE Win",
+                        False,
+                        "Win update returned incorrect stats",
+                        {"response": data, "expected": {"total_games": 1, "wins": 1, "losses": 0, "win_rate": 100.0}}
+                    )
+            else:
+                self.log_test(
+                    "Stats - UPDATE Win",
+                    False,
+                    f"HTTP {response.status_code}: {response.text}",
+                    {"status_code": response.status_code}
+                )
+            
+            # Test 3: Update stats with loss
+            response = await self.client.post(f"{BACKEND_URL}/stats/update", json={
+                "user_id": test_user_id,
+                "won": False
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Should now be: total_games=2, wins=1, losses=1, win_rate=50.0
+                if (data.get("total_games") == 2 and data.get("wins") == 1 and 
+                    data.get("losses") == 1 and data.get("win_rate") == 50.0):
+                    self.log_test(
+                        "Stats - UPDATE Loss",
+                        True,
+                        "Successfully updated stats with loss",
+                        {"response": data}
+                    )
+                    
+                    # Update expected stats
+                    self.expected_stats = data
+                else:
+                    self.log_test(
+                        "Stats - UPDATE Loss",
+                        False,
+                        "Loss update returned incorrect stats",
+                        {"response": data, "expected": {"total_games": 2, "wins": 1, "losses": 1, "win_rate": 50.0}}
+                    )
+            else:
+                self.log_test(
+                    "Stats - UPDATE Loss",
+                    False,
+                    f"HTTP {response.status_code}: {response.text}",
+                    {"status_code": response.status_code}
+                )
+            
+            # Test 4: Verify GET endpoint consistency
+            if hasattr(self, 'stats_test_user') and hasattr(self, 'expected_stats'):
+                response = await self.client.get(f"{BACKEND_URL}/stats/{self.stats_test_user}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data == self.expected_stats:
+                        self.log_test(
+                            "Stats - GET Consistency",
+                            True,
+                            "GET endpoint returns consistent stats with UPDATE",
+                            {"response": data}
+                        )
+                    else:
+                        self.log_test(
+                            "Stats - GET Consistency",
+                            False,
+                            "GET stats doesn't match UPDATE response",
+                            {"get_response": data, "expected_from_update": self.expected_stats}
+                        )
+                else:
+                    self.log_test(
+                        "Stats - GET Consistency",
+                        False,
+                        f"GET stats failed with HTTP {response.status_code}",
+                        {"status_code": response.status_code, "response": response.text}
+                    )
+            
+            # Test 5: Multiple updates for win rate calculation
+            multi_test_user = f"multi_test_{int(time.time())}"
+            
+            # Add 2 wins and 1 loss = 66.7% win rate
+            await self.client.post(f"{BACKEND_URL}/stats/update", json={"user_id": multi_test_user, "won": True})
+            await self.client.post(f"{BACKEND_URL}/stats/update", json={"user_id": multi_test_user, "won": True})
+            response = await self.client.post(f"{BACKEND_URL}/stats/update", json={"user_id": multi_test_user, "won": False})
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Should be: total_games=3, wins=2, losses=1, win_rate=66.7
+                if (data.get("total_games") == 3 and data.get("wins") == 2 and 
+                    data.get("losses") == 1 and abs(data.get("win_rate", 0) - 66.7) < 0.1):
+                    self.log_test(
+                        "Stats - Win Rate Calculation",
+                        True,
+                        f"Correctly calculated win rate: {data.get('win_rate')}%",
+                        {"response": data}
+                    )
+                else:
+                    self.log_test(
+                        "Stats - Win Rate Calculation",
+                        False,
+                        "Win rate calculation incorrect",
+                        {"response": data, "expected_win_rate": 66.7}
+                    )
+            else:
+                self.log_test(
+                    "Stats - Win Rate Calculation",
+                    False,
+                    f"Multiple update failed with HTTP {response.status_code}",
+                    {"status_code": response.status_code}
+                )
+                
+        except Exception as e:
+            self.log_test(
+                "Stats - Error",
+                False,
+                f"Exception testing stats endpoints: {str(e)}",
+                {"error_type": type(e).__name__}
+            )
+    
     def generate_summary(self):
         """Generate test summary"""
         print("\n" + "="*80)
@@ -574,6 +761,7 @@ async def main():
         await tester.test_validate_word_endpoint()
         await tester.test_pass_turn_endpoint()
         await tester.test_get_game_state_endpoint()
+        await tester.test_stats_endpoints()
         
         # Generate summary
         all_passed, results = tester.generate_summary()

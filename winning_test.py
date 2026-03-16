@@ -8,7 +8,7 @@ import httpx
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 
-BACKEND_URL = "https://quick-word-chain.preview.emergentagent.com/api"
+BACKEND_URL = "https://word-match-challenge-2.preview.emergentagent.com/api"
 MONGO_URL = "mongodb://localhost:27017"
 DB_NAME = "test_database"
 

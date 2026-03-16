@@ -165,6 +165,36 @@ backend:
         agent: "testing"
         comment: "✅ PASSED comprehensive testing: Retrieves complete game state correctly, returns proper 404 for invalid game IDs, all required fields present in response. Data consistency verified across multiple game operations."
 
+  - task: "Stats update endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/stats/update and GET /api/stats/{user_id} endpoints use MongoDB for persistent stats tracking"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED comprehensive testing: POST /api/stats/update correctly increments total_games, wins/losses, and calculates win_rate. Handles both wins (100% win rate) and losses (50% win rate for 1W/1L). MongoDB persistence working correctly. Tested multiple scenarios including cumulative stats and win rate calculations (66.7% for 2W/1L)."
+
+  - task: "Stats get endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/stats/{user_id} returns user stats from MongoDB"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED comprehensive testing: GET /api/stats/{user_id} correctly returns zero stats for new users {total_games: 0, wins: 0, losses: 0, win_rate: 0.0}. Returns consistent stats after updates. Proper data structure with all required fields. MongoDB integration working correctly. Tested consistency with POST update responses."
+
 frontend:
   - task: "Welcome screen with rules"
     implemented: true
@@ -206,13 +236,31 @@ frontend:
     implemented: true
     working: "NA"
     file: "/app/frontend/app/index.tsx"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented colorful game over screen showing winner and final scores with play again button"
+      - working: false
+        agent: "user"
+        comment: "User reported crash: 'Rendered more hooks than during the previous render' - useEffect was inside conditional render block"
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed hooks violation: moved useEffect to top level with gameEndProcessed flag to prevent duplicate calls. Also added stats reload on Play Again and Exit."
+
+  - task: "Statistics tracking and display"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Stats use backend MongoDB endpoints. Frontend loads on init and updates on game end. Exit counts as loss. Stats reload when returning to welcome screen."
 
 metadata:
   created_by: "main_agent"
@@ -222,12 +270,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Start new game endpoint"
-    - "Validate word and generate app response"
-    - "Pass turn functionality"
-    - "Get game state endpoint"
+    - "Stats update endpoint"
+    - "Stats get endpoint"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
@@ -235,3 +281,7 @@ agent_communication:
     message: "Implemented complete word chain puzzle game backend with external API integrations (Dictionary API for validation, DataMuse API for word generation and frequency scoring). All game endpoints ready for testing. Frontend is implemented with colorful UI and animations but backend needs testing first."
   - agent: "testing"
     message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 4 backend API endpoints are working perfectly. Tested 12+ scenarios including: game creation, word validation with Dictionary API, app word generation with DataMuse API, pass turn functionality, game state retrieval, error handling (404s), winning conditions, edge cases (empty words, wrong letters, reused words, mixed case, whitespace). External API integrations are functional. MongoDB persistence verified. All tests passed 12/12. Backend is production-ready."
+  - agent: "main"
+    message: "Fixed P0 hooks crash: moved useEffect out of conditional render in game-over screen. Added gameEndProcessed flag to prevent duplicate stats updates. Fixed P1: stats now use MongoDB-backed backend endpoints. Exit counts as loss. Stats reload on Play Again and returning to welcome screen. Need testing of stats endpoints (POST /api/stats/update and GET /api/stats/{user_id})."
+  - agent: "testing"
+    message: "✅ STATS ENDPOINTS TESTING COMPLETED - Both stats endpoints working perfectly. GET /api/stats/{user_id} correctly returns zero stats for new users and consistent stats after updates. POST /api/stats/update properly increments totals, tracks wins/losses, and calculates win_rate accurately (tested 100%, 50%, and 66.7% scenarios). MongoDB persistence and data consistency verified. All 5 stats test scenarios passed. Backend stats functionality is production-ready."
