@@ -15,11 +15,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const { width } = Dimensions.get('window');
 
-const API_BASE_URL = EXPO_PUBLIC_BACKEND_URL?.replace(/\/$/, '')
-  ?? (Platform.OS === 'web' ? '/api' : 'http://localhost:8000/api');
+const API_BASE_URL = 'http://localhost:8000/api';
 
 const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
