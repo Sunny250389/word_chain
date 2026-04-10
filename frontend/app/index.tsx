@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
-const API_BASE_URL = Platform.OS === 'web' ? '/api' : 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
