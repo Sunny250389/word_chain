@@ -15,8 +15,36 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const { width } = Dimensions.get('window');
+
+const API_BASE_URL_CANDIDATES = [
+  'http://localhost:8000/api',
+  'http://127.0.0.1:8000/api',
+  'http://localhost:8001/api',
+  '/api',
+];
+
+let resolvedApiBaseUrl = API_BASE_URL_CANDIDATES[0];
+
+const buildApiUrl = (baseUrl: string, path: string) => `${baseUrl}${path}`;
+
+const apiFetch = async (path: string, options?: RequestInit) => {
+  let lastError: unknown;
+
+  const candidates = [resolvedApiBaseUrl, ...API_BASE_URL_CANDIDATES.filter((url) => url !== resolvedApiBaseUrl)];
+
+  for (const baseUrl of candidates) {
+    try {
+      const response = await fetch(buildApiUrl(baseUrl, path), options);
+      resolvedApiBaseUrl = baseUrl;
+      return response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+};
 
 interface GameState {
   game_id: string;
@@ -70,7 +98,7 @@ export default function Index() {
 
   const loadStats = async (uid: string) => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/${uid}`);
+      const response = await apiFetch(`/stats/${uid}`);
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -82,7 +110,7 @@ export default function Index() {
     if (!userId) return;
     
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/update`, {
+      const response = await apiFetch('/stats/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, won }),
@@ -100,7 +128,7 @@ export default function Index() {
     setMessage('');
     setGameEndProcessed(false);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/start`, {
+      const response = await apiFetch('/game/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ time_limit: timerDuration }),
@@ -181,7 +209,7 @@ export default function Index() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/validate`, {
+      const response = await apiFetch('/game/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,7 +240,7 @@ export default function Index() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/pass`, {
+      const response = await apiFetch('/game/pass', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ game_id: gameState.game_id }),
