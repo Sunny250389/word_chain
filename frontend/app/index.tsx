@@ -15,8 +15,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const { width } = Dimensions.get('window');
+
+const API_BASE_URL = Platform.OS === 'web'
+  ? `http://${window.location.hostname}:8000/api`
+  : 'http://localhost:8000/api';
+
+const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
 interface GameState {
   game_id: string;
@@ -70,7 +75,7 @@ export default function Index() {
 
   const loadStats = async (uid: string) => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/${uid}`);
+      const response = await fetch(buildApiUrl(`/stats/${uid}`));
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -82,7 +87,7 @@ export default function Index() {
     if (!userId) return;
     
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/stats/update`, {
+      const response = await fetch(buildApiUrl('/stats/update'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, won }),
@@ -100,7 +105,7 @@ export default function Index() {
     setMessage('');
     setGameEndProcessed(false);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/start`, {
+      const response = await fetch(buildApiUrl('/game/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ time_limit: timerDuration }),
@@ -181,7 +186,7 @@ export default function Index() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/validate`, {
+      const response = await fetch(buildApiUrl('/game/validate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,7 +217,7 @@ export default function Index() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/game/pass`, {
+      const response = await fetch(buildApiUrl('/game/pass'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ game_id: gameState.game_id }),
